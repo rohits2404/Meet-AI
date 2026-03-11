@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
+import { NuqsAdapter } from "nuqs/adapters/next";
 
 const inter = Inter({
     subsets:['latin'],
@@ -25,17 +26,19 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <TRPCReactProvider>
-            <html lang="en" className={cn("font-sans", inter.variable)}>
-                <body
-                className={`${inter.className} antialiased`}
-                >
-                    <TooltipProvider>
-                        <Toaster/>
-                        {children}
-                    </TooltipProvider>
-                </body>
-            </html>
-        </TRPCReactProvider>
+        <NuqsAdapter>
+            <TRPCReactProvider>
+                <html lang="en" className={cn("font-sans", inter.variable)}>
+                    <body
+                    className={`${inter.className} antialiased`}
+                    >
+                        <TooltipProvider>
+                            <Toaster/>
+                            {children}
+                        </TooltipProvider>
+                    </body>
+                </html>
+            </TRPCReactProvider>
+        </NuqsAdapter>
     );
 }
