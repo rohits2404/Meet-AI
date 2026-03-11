@@ -14,6 +14,7 @@
         "@hookform/resolvers": "^5.2.2",
         "@neondatabase/serverless": "^1.0.2",
         "@tanstack/react-query": "^5.90.21",
+        "@tanstack/react-table": "^8.21.3",
         "@trpc/client": "^11.12.0",
         "@trpc/server": "^11.12.0",
         "@trpc/tanstack-react-query": "^11.12.0",
