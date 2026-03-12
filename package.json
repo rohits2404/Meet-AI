@@ -6,7 +6,8 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "eslint"
+        "lint": "eslint",
+        "tunnel": "ngrok http --url=insect-enhanced-simply.ngrok-free.app 3000"
     },
     "dependencies": {
         "@dicebear/collection": "^9.4.0",
