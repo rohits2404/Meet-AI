@@ -30,7 +30,11 @@ Example:
 - Feature X automatically does Y
 - Mention of integration with Z
   `.trim(),
-    model: openai({ model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY }),
+    model: openai({ 
+        model: "openai/gpt-oss-20b", 
+        apiKey: process.env.GROQ_API_KEY,
+        baseUrl: "https://api.groq.com/openai/v1",
+    }),
 });
 
 export const meetingsProcessing = inngest.createFunction(
