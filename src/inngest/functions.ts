@@ -30,8 +30,8 @@ Example:
 - Feature X automatically does Y
 - Mention of integration with Z
   `.trim(),
-    model: openai({ 
-        model: "openai/gpt-oss-20b", 
+    model: openai({
+        model: "openai/gpt-oss-20b",
         apiKey: process.env.GROQ_API_KEY,
         baseUrl: "https://api.groq.com/openai/v1",
     }),
@@ -41,71 +41,80 @@ export const meetingsProcessing = inngest.createFunction(
     { id: "meetings/processing" },
     { event: "meetings/processing" },
     async ({ event, step }) => {
-        const text = await (await step.fetch(event.data.transcriptUrl)).text();
-        const transcript = JSONL.parse<StreamTranscriptItem>(text);
-        
+
+        // ✅ Fetch and parse inside step.run so it's durable and replay-safe
+        const transcript = await step.run("fetch-transcript", async () => {
+            const response = await fetch(event.data.transcriptUrl);
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to fetch transcript: ${response.status} ${response.statusText}`
+                );
+            }
+
+            const text = await response.text();
+
+            if (text.startsWith("<!DOCTYPE")) {
+                throw new Error(`Expected JSONL but got HTML: ${text.slice(0,200)}`);
+            }
+            
+            return JSONL.parse<StreamTranscriptItem>(text);
+        });
+
+        // ✅ Add speakers — unchanged logic, but now replay-safe
         const transcriptWithSpeakers = await step.run("add-speakers", async () => {
             const speakerIds = [
                 ...new Set(transcript.map((item) => item.speaker_id)),
             ];
 
             const userSpeakers = await db
-            .select()
-            .from(user)
-            .where(inArray(user.id, speakerIds))
-            .then((users) =>
-                users.map((user) => ({
-                    ...user,
-                }))
-            );
+                .select()
+                .from(user)
+                .where(inArray(user.id, speakerIds))
+                .then((users) =>
+                    users.map((u) => ({ ...u }))
+                );
 
             const agentSpeakers = await db
-            .select()
-            .from(agents)
-            .where(inArray(agents.id, speakerIds))
-            .then((agents) =>
-                agents.map((agent) => ({
-                    ...agent,
-                }))
-            );
+                .select()
+                .from(agents)
+                .where(inArray(agents.id, speakerIds))
+                .then((agentList) =>
+                    agentList.map((a) => ({ ...a }))
+                );
 
             const speakers = [...userSpeakers, ...agentSpeakers];
 
             return transcript.map((item) => {
-                const speaker = speakers.find(
-                    (speaker) => speaker.id === item.speaker_id
-                );
-
-                if (!speaker) {
-                    return {
-                        ...item,
-                        user: {
-                            name: "Unknown",
-                        },
-                    };
-                }
+                const speaker = speakers.find((s) => s.id === item.speaker_id);
 
                 return {
                     ...item,
                     user: {
-                        name: speaker.name,
+                        name: speaker?.name ?? "Unknown",
                     },
                 };
             });
         });
 
-        const { output } = await summarizer.run(
-            "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers)
-        );
+        // ✅ summarizer.run wrapped in step.run so AI call is durable
+        const summary = await step.run("summarize", async () => {
+            const { output } = await summarizer.run(
+                "Summarize the following transcript: " +
+                    JSON.stringify(transcriptWithSpeakers)
+            );
+            return (output[0] as TextMessage).content as string;
+        });
 
+        // ✅ Save summary
         await step.run("save-summary", async () => {
             await db
-            .update(meetings)
-            .set({
-                summary: (output[0] as TextMessage).content as string,
-                status: "completed",
-            })
-            .where(eq(meetings.id, event.data.meetingId))
-        })
+                .update(meetings)
+                .set({
+                    summary: summary,
+                    status: "completed",
+                })
+                .where(eq(meetings.id, event.data.meetingId));
+        });
     },
 );
