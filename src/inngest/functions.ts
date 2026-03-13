@@ -41,13 +41,9 @@ export const meetingsProcessing = inngest.createFunction(
     { id: "meetings/processing" },
     { event: "meetings/processing" },
     async ({ event, step }) => {
-        const response = await step.fetch(event.data.transcriptUrl);
-
-        const transcript = await step.run("parse-transcript", async () => {
-            const text = await response.text();
-            return JSONL.parse<StreamTranscriptItem>(text);
-        });
-
+        const text = await (await step.fetch(event.data.transcriptUrl)).text();
+        const transcript = JSONL.parse<StreamTranscriptItem>(text);
+        
         const transcriptWithSpeakers = await step.run("add-speakers", async () => {
             const speakerIds = [
                 ...new Set(transcript.map((item) => item.speaker_id)),
