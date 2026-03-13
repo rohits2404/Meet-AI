@@ -9,21 +9,28 @@ import {
 
 export const premiumRouter = createTRPCRouter({
     getCurrentSubscription: protectedProcedure.query(async ({ ctx }) => {
-        const customer = await polarClient.customers.getStateExternal({
-            externalId: ctx.auth.user.id,
-        });
+        try {
+            const customer = await polarClient.customers.getStateExternal({
+                externalId: ctx.auth.user.id,
+            });
 
-        const subscription = customer.activeSubscriptions[0];
+            const subscription = customer.activeSubscriptions[0];
 
-        if (!subscription) {
-            return null;
+            if (!subscription) {
+                return null;
+            }
+
+            const product = await polarClient.products.get({
+                id: subscription.productId,
+            });
+
+            return product;
+        } catch (error: any) {
+            if (error?.body?.error === "ResourceNotFound") {
+                return null;
+            }
+            throw error;
         }
-
-        const product = await polarClient.products.get({
-            id: subscription.productId,
-        });
-
-        return product;
     }),
     getProducts: protectedProcedure.query(async () => {
         const products = await polarClient.products.list({
@@ -45,8 +52,7 @@ export const premiumRouter = createTRPCRouter({
             return null;
         }
 
-        const [userMeetings] = await db
-        .select({
+        const [userMeetings] = await db.select({
             count: count(meetings.id),
         })
         .from(meetings)

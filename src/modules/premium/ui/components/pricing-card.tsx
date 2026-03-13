@@ -99,7 +99,7 @@ export const PricingCard = ({
                     <h4 className="text-3xl font-medium">
                         {Intl.NumberFormat("en-US", {
                             style: "currency",
-                            currency: "USD",
+                            currency: "INR",
                             minimumFractionDigits: 0,
                         }).format(price)}
                     </h4>
